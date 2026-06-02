@@ -30,6 +30,10 @@ const app = new express();
 app.use(cors());
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.sendFile(__dirname + "/index.html");
+});
+
 app.use("/auth", authRouter);
 app.use("/", bookingRouter);
 
@@ -38,10 +42,6 @@ app.use("/", bookingRouter);
 // Set up server-side session storage middleware and define route mounting
 // to register OIDC endpoints under the desired route prefix.
 // =========================================================================
-
-app.get("/", (req, res) => {
-  res.sendFile(__dirname + "/index.html");
-});
 
 app.listen(port, () => console.log("Server starting on port: " + port));
 try {
