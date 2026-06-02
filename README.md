@@ -37,6 +37,10 @@ book-my-ticket/
 │   ├── auth.contoller.js       # Handles incoming request logic & routes to services
 │   ├── auth.routes.js          # Defines routing and schema middleware validation
 │   └── auth.service.js         # Core business logic (hashing, JWTs, DB operations)
+├── booking/
+│   ├── booking.contoller.js    # Handles seat fetching & booking request logic
+│   ├── booking.routes.js       # Defines routes for seat retrieval and booking
+│   └── booking.service.js      # Handles seat transactional database operations
 ├── common/
 │   ├── dto/                    # Data Transfer Objects & validation schemas (Joi)
 │   │   ├── BaseDto.js
