@@ -1,0 +1,8 @@
+CREATE TABLE bookings(
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    show_id UUID REFERENCES shows(id) ON DELETE CASCADE,
+    seat_id INT REFERENCES seats(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
