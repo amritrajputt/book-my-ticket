@@ -1,31 +1,34 @@
-# Stellar Seat Booking - ChaiCode Cinema 🍿
+# Book My Ticket 🍿
 
-A premium, modern movie seat booking application featuring a robust custom-built authentication system, real-time interactive seat booking, and structured PostgreSQL database integration.
+A modern cinema seat booking application featuring atomic database seat locking during booking, a secure custom-built JWT authentication system, and PostgreSQL database integration.
 
 ---
 
 ## 🚀 Key Features
 
-* **Interactive Seat Booking**: Responsive, modern seat mapping grid built with HTML, Tailwind CSS, and custom styling. Real-time updates and active booking confirmation dialogs.
+* **Interactive Seat Booking**: Responsive seat mapping grid on the frontend. Seats update in real time.
+* **Atomic Seat Locking**: Row-level `SELECT FOR UPDATE` prevents double-booking when multiple users book the same seat simultaneously.
 * **Full-featured Custom Auth Module**:
-  * **User Registration & Login**: Validated using robust `Joi` DTO schemas and encrypted with `bcrypt` (10 rounds).
-  * **Email Verification**: Sends an automatic verification email using Gmail SMTP (`nodemailer`) on registration.
-  * **JWT Sessions**: Double token mechanism utilizing short-lived Access Tokens (15m) and long-lived Refresh Tokens (7d).
-  * **Password Lifecycle**: Forgot password link generation and secure password reset using one-time tokens.
-  * **Secure Logout**: Revokes and invalidates session tokens in the database.
-* **Centralized Logic & Clean Architecture**:
-  * Controllers are kept clean with standard `try/catch` wrappers.
-  * Consistent responses using standard helper classes (`ApiResponse` and `ApiError`).
+  * **User Registration & Login**: Validated using `Joi` DTO schemas, passwords encrypted with `bcrypt` (10 rounds).
+  * **Email Verification**: Automatic verification email sent via Gmail SMTP (`nodemailer`) on registration.
+  * **JWT Sessions**: Short-lived Access Tokens (15m) + long-lived Refresh Tokens (7d).
+  * **Password Lifecycle**: Forgot password link generation and one-time token based password reset.
+  * **Secure Logout**: Refresh token is revoked and cleared from the database on logout.
+* **Protected Booking Routes**: Seat endpoints are guarded by JWT access token middleware (`bookingMiddleware`).
+* **Booking History**: Every successful booking stores `user_id` + `seat_id` in a separate `bookings` table — uniquely tied to the user's UUID, not just a name.
+* **Clean Architecture**: Modular folder structure separating auth and booking into dedicated modules with controllers, services, routes, and middleware.
 
 ---
 
 ## 🛠️ Tech Stack
 
-* **Frontend**: HTML5, Tailwind CSS, JavaScript (Vanilla ES6)
-* **Backend**: Node.js, Express.js (v5.x)
-* **Database**: PostgreSQL (with transactional integrity for bookings)
-* **Auth & Security**: JWT (`jsonwebtoken`), Password hashing (`bcrypt`), validation (`joi`)
-* **Mailing**: SMTP integration (`nodemailer`)
+| Layer | Technology |
+|---|---|
+| **Frontend** | HTML5, Tailwind CSS, Vanilla JS |
+| **Backend** | Node.js, Express.js |
+| **Database** | PostgreSQL (`pg` pool) |
+| **Auth** | JWT (`jsonwebtoken`), `bcrypt`, `joi` |
+| **Mailing** | `nodemailer` (Gmail SMTP) |
 
 ---
 
@@ -34,31 +37,36 @@ A premium, modern movie seat booking application featuring a robust custom-built
 ```
 book-my-ticket/
 ├── auth/
-│   ├── auth.contoller.js       # Handles incoming request logic & routes to services
-│   ├── auth.routes.js          # Defines routing and schema middleware validation
-│   └── auth.service.js         # Core business logic (hashing, JWTs, DB operations)
+│   ├── auth.contoller.js       # Handles incoming auth request logic
+│   ├── auth.routes.js          # Auth routing with Joi schema middleware
+│   └── auth.service.js         # Business logic (hashing, JWTs, DB ops)
 ├── booking/
-│   ├── booking.contoller.js    # Handles seat fetching & booking request logic
-│   ├── booking.routes.js       # Defines routes for seat retrieval and booking
-│   └── booking.service.js      # Handles seat transactional database operations
+│   ├── booking.contoller.js    # Handles seat fetching & booking requests
+│   ├── booking.middleware.js   # JWT access token verification middleware
+│   ├── booking.routes.js       # Booking routes (protected by middleware)
+│   └── booking.service.js      # Transactional DB operations for seat booking
 ├── common/
-│   ├── dto/                    # Data Transfer Objects & validation schemas (Joi)
+│   ├── dto/                    # Joi validation schemas (Data Transfer Objects)
 │   │   ├── BaseDto.js
 │   │   ├── LoginDto.js
 │   │   └── RegisterDto.js
-│   ├── middleware/             # Express middlewares (Validation, Auth validation)
-│   │   └── auth.middleware.js
-│   └── utils/                  # Centralized utilities & formatters
-│       ├── ApiError.js         # Standarized API error formats
-│       ├── ApiResponse.js      # Standarized success response formats
-│       ├── email.js            # Nodemailer transport configurations
-│       └── jwt.token.js        # JWT generation and verification helpers
+│   ├── middleware/
+│   │   └── auth.middleware.js  # Joi DTO validation middleware for auth routes
+│   └── utils/
+│       ├── ApiError.js         # Standardized API error class & handler
+│       ├── ApiResponse.js      # Standardized success response class
+│       ├── email.js            # Nodemailer transporter configuration
+│       └── jwt.token.js        # JWT generation & verification helpers
 ├── db/
-│   └── index.js                # pg.Pool database connection configurations
-├── index.html                  # Seating layout grid user interface
-├── index.mjs                   # Core Express app setup, routes, and DB initialization
-├── package.json                # Dependencies and project metadata
-└── README.md                   # Project documentation
+│   ├── index.js                # pg.Pool connection setup
+│   └── models/
+│       ├── auth.model.sql      # Users table schema
+│       ├── seats.model.sql     # Seats table schema
+│       └── users.booking.sql   # Bookings table schema (user_id + seat_id)
+├── index.html                  # Seating grid UI
+├── index.mjs                   # Express app entry point
+├── .env                        # Environment variables (not committed)
+└── package.json
 ```
 
 ---
@@ -76,47 +84,44 @@ EMAIL_PASSWORD=your_gmail_app_password
 ```
 
 > [!NOTE]
-> Make sure `EMAIL_PASSWORD` is a 16-character Google App Password (spaces removed) rather than your actual account password.
+> `EMAIL_PASSWORD` must be a 16-character **Google App Password** (not your Google account password). Generate it from your Google Account → Security → App Passwords.
 
 ---
 
 ## 🏗️ Quick Start
 
 ### 1. Prerequisites
-Ensure you have **Node.js** and **PostgreSQL** installed and running on your system.
+- **Node.js** v18+
+- **PostgreSQL** running locally
 
 ### 2. Install Dependencies
 ```bash
 npm install
 ```
 
-### 3. Initialize Database
-Initialize the schema (e.g. `users`, `seats` tables):
-```bash
-npm run db:init
-```
+### 3. Setup Database
+Run the SQL files in `db/models/` in this order in your PostgreSQL client:
+1. `auth.model.sql` — creates `users` table
+2. `seats.model.sql` — creates `seats` table and seeds 20 seats
+3. `users.booking.sql` — creates `bookings` table
 
 ### 4. Run the Server
 ```bash
 node index.mjs
 ```
-The server will start listening at `http://localhost:8080`.
+Server starts at `http://localhost:8080`.
 
 ---
 
 ## 🔒 Database Transaction Security & Concurrency Control
 
-The seat booking process implements enterprise-grade database management and security practices directly within the PostgreSQL transaction boundary:
+The seat booking process uses enterprise-grade PostgreSQL transaction management:
 
-* **Atomic Seat Locking (Race Condition Prevention)**:
-  * Employs a row-level write lock utilizing `SELECT * FROM seats WHERE id = $1 AND isbooked = 0 FOR UPDATE` inside an active transaction block.
-  * This ensures that if multiple users attempt to book the exact same seat simultaneously, only one transaction succeeds. The other concurrent attempts block or fail safely instead of creating double-bookings.
-* **Minimized Transaction Scope**:
-  * The transaction block (`BEGIN` / `COMMIT`) is kept as small as possible to minimize lock contention and maximize server throughput.
-* **SQL Injection Protection**:
-  * All queries use parameterized inputs (e.g., passing variables in placeholders like `$1` and `$2` instead of dynamic ES6 template string interpolation). This fully neutralizes SQL injection vulnerabilities.
-* **Optimized Resource Management**:
-  * A PostgreSQL client is fetched from the connection pool (`pool.connect()`) and strictly released back to the pool (`conn.release()`) upon completion to avoid database connection exhaustion.
+* **Atomic Seat Locking**: `SELECT * FROM seats WHERE id = $1 AND isbooked = 0 FOR UPDATE` — row-level write lock prevents two users from booking the same seat simultaneously (Race Condition prevention).
+* **ROLLBACK on Failure**: If any error occurs mid-transaction, `ROLLBACK` is automatically called to keep the database consistent.
+* **Minimized Transaction Scope**: `BEGIN` / `COMMIT` block is kept as small as possible to reduce lock contention.
+* **SQL Injection Protection**: All queries use parameterized placeholders (`$1`, `$2`) — no string interpolation.
+* **Connection Pool Management**: `pool.connect()` fetches a client and `conn.release()` is always called in `finally` to prevent connection exhaustion.
 
 ---
 
@@ -124,19 +129,33 @@ The seat booking process implements enterprise-grade database management and sec
 
 ### Authentication Endpoints
 
-| Method | Endpoint | Description | Request Body / Headers |
+| Method | Endpoint | Auth Required | Request Body / Headers |
 |---|---|---|---|
-| **POST** | `/auth/register` | Registers a user and sends verification email. | `{ firstName, lastName, email, password }` |
-| **GET** | `/auth/verify` | Verifies user's email using token from email link. | Query Param: `?token=<verification_token>` |
-| **POST** | `/auth/login` | Authenticates user credentials and returns tokens. | `{ email, password }` |
-| **POST** | `/auth/generate-new-access-token` | Generates a new access token using a refresh token. | Header: `Authorization: Bearer <refresh_token>` |
-| **POST** | `/auth/forgot-password` | Sends a password reset link to user's email. | `{ email }` |
-| **POST** | `/auth/reset-password` | Resets the password using a reset token. | `{ token, password }` |
-| **POST** | `/auth/logout` | Revokes the current session and clears refresh token. | Header: `Authorization: Bearer <refresh_token>` |
+| **POST** | `/auth/register` | ❌ | `{ firstName, lastName, email, password }` |
+| **GET** | `/auth/verify` | ❌ | Query: `?token=<verification_token>` |
+| **POST** | `/auth/login` | ❌ | `{ email, password }` |
+| **POST** | `/auth/generate-new-access-token` | ✅ Refresh Token | Header: `Authorization: Bearer <refresh_token>` |
+| **POST** | `/auth/forgot-password` | ❌ | `{ email }` |
+| **POST** | `/auth/reset-password` | ❌ | `{ token, password }` |
+| **POST** | `/auth/logout` | ✅ Refresh Token | Header: `Authorization: Bearer <refresh_token>` |
 
 ### Seat Booking Endpoints
 
-| Method | Endpoint | Description |
-|---|---|---|
-| **GET** | `/seats` | Retrieves all cinema seats and booking statuses. |
-| **PUT** | `/:id/:name` | Books a specific seat under a customer's name (transactionally safe). |
+> [!IMPORTANT]
+> All booking endpoints require a valid **Access Token** in the `Authorization` header: `Bearer <access_token>`
+
+| Method | Endpoint | Description | Request |
+|---|---|---|---|
+| **GET** | `/seats` | Fetch all seats with booking status. | Header: `Authorization: Bearer <access_token>` |
+| **PUT** | `/:id/:name` | Book a seat by seat ID and user display name. | Header: `Authorization: Bearer <access_token>` · Body: `{ "userId": "<user_uuid>" }` |
+
+#### Example Book Seat Request:
+```
+PUT http://localhost:8080/1/Amrit
+Authorization: Bearer eyJhbGci...
+Content-Type: application/json
+
+{
+  "userId": "82f86531-46f2-4315-b23a-2a88dac0993b"
+}
+```
